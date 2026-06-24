@@ -1,0 +1,87 @@
+# =====================================================
+# Python - Environnement virtuel et cache
+# =====================================================
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# =====================================================
+# Distribution / packaging
+# =====================================================
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# =====================================================
+# Tests et couverture
+# =====================================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# =====================================================
+# IDE / Éditeurs
+# =====================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =====================================================
+# Système d'exploitation
+# =====================================================
+.DS_Store
+Thumbs.db
+
+# =====================================================
+# Logs et fichiers temporaires
+# =====================================================
+*.log
+*.tmp
+*.bak
+
+# =====================================================
+# === SPÉCIFIQUE À VOTRE PROJET D'AGENT IA ===
+# =====================================================
+
+# 🔒 Fichier de mémoire persistante (contient vos conversations privées)
+memory.json
+
+# 📁 Base de données vectorielle (ChromaDB) - se reconstruit automatiquement
+# Elle peut être très lourde (centaines de Mo) et contient des copies de vos docs
+chroma_db/
+chroma_db_docs/
+
+# 📄 Dossier de documents privés (PDF, Word, TXT) - NE JAMAIS publier !
+# Vos documents personnels/professionnels doivent rester locaux
+documents/
+
+# ⚠️ Fichiers de variables d'environnement (clés API, mots de passe)
+# Même si vous n'en avez pas pour l'instant, c'est une règle d'or
+.env
+.env.local
+secrets.json
+config_private.py
+
+# 🧠 Modèles téléchargés localement (si un jour vous en avez hors Ollama)
+models/
+*.gguf
+*.bin
+
+# 🗂️ Fichiers de session Streamlit (si vous ajoutez l'interface web)
+.streamlit/secrets.toml
+
+# 📁 Documents générés par l'agent (l'utilisateur les garde en local)
+outputs/
