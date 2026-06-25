@@ -122,6 +122,106 @@ try:
 except ImportError:
     HAS_PYAUDIO = False
 
+try:
+    from duckduckgo_search import DDGS
+    HAS_DUCKDUCKGO = True
+except ImportError:
+    HAS_DUCKDUCKGO = False
+
+
+# ========================= PERSONNALITÉS =========================
+
+def load_personnalites():
+    """Charge les personnalités depuis personnalites.json. Retourne une liste de dicts."""
+    default_personnalites = [
+        {"nom": "🤖 Assistant", "description": "Neutre et serviable", "system_prompt": "Tu es un assistant IA serviable, clair et concis."},
+        {"nom": "👨‍🏫 Professeur", "description": "Patient et pédagogique", "system_prompt": "Tu es un professeur patient qui explique étape par étape avec des analogies."},
+        {"nom": "👨‍💻 Développeur", "description": "Direct et technique", "system_prompt": "Tu es un développeur senior. Réponses directes, techniques, avec du code."},
+        {"nom": "🏋️ Coach", "description": "Motivant et concis", "system_prompt": "Tu es un coach motivant. Réponses courtes, positives et actionnables."},
+        {"nom": "🎨 Poète", "description": "Créatif et imagé", "system_prompt": "Tu es un poète créatif. Réponses avec métaphores et style littéraire."},
+        {"nom": "😏 Sarcastic", "description": "Ironique mais utile", "system_prompt": "Tu es sarcastique et ironique, mais toujours utile et précis."},
+        {"nom": "🧪 Scientifique", "description": "Rigoureux et sceptique", "system_prompt": "Tu es un scientifique rigoureux. Faits nuancés, preuves, scepticisme."},
+        {"nom": "👶 Explicateur (5 ans)", "description": "Ultra simple", "system_prompt": "Tu expliques comme à un enfant de 5 ans. Mots simples, analogies ludiques."},
+    ]
+    if not os.path.exists("personnalites.json"):
+        return default_personnalites
+    try:
+        with open("personnalites.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict) and "personnalites" in data:
+                return data["personnalites"]
+            if isinstance(data, list):
+                return data
+    except Exception:
+        pass
+    return default_personnalites
+
+
+def detecter_personnalite_auto(query: str, personnalites: list) -> int:
+    """
+    Détecte automatiquement la personnalité la plus appropriée selon la requête.
+    Utilise une détection par mots-clés rapide (regex). Retourne l'index.
+    """
+    q = query.lower()
+    # Index : mots-clés regex associés
+    mots_cles = {
+        1: [r"\bapprends?\b", r"\bexplique\b", r"\bcours\b", r"\bleçon\b", r"\btutoriel\b",
+            r"\bpédagogique\b", r"\benseigne\b", r"\bétape\b", r"\bcomprendre\b",
+            r"\bcomment ça marche\b", r"\bpourquoi\b", r"\bnotion\b", r"\bconcept\b"],
+        2: [r"\bcode\b", r"\bcoder\b", r"\bprogramme\b", r"\bprogrammation\b", r"\bpython\b",
+            r"\bjavascript\b", r"\bhtml\b", r"\bcss\b", r"\bbug\b", r"\bdébug\b", r"\bfonction\b",
+            r"\bscript\b", r"\bdéveloppe\b", r"\bapi\b", r"\bbibliothèque\b", r"\blibrary\b",
+            r"\bdéveloppeur\b", r"\bgit\b", r"\bgithub\b", r"\bdocker\b"],
+        3: [r"\bmotive\b", r"\bmotivation\b", r"\bdéprime\b", r"\btriste\b", r"\bobjectif\b",
+            r"\bbut\b", r"\bréussir\b", r"\bcourage\b", r"\baide[- ]moi\b", r"\bconseil\b",
+            r"\bexercice\b", r"\bsport\b", r"\bpersévère\b", r"\babandonne\b"],
+        4: [r"\bpoème\b", r"\bpoésie\b", r"\bpoétique\b", r"\brime\b", r"\brimes\b",
+            r"\bécrit\b", r"\bstyle littéraire\b", r"\bmétaphore\b", r"\bimager\b",
+            r"\bromantique\b", r"\bâme\b", r"\bvers\b", r"\bprose\b"],
+        5: [r"\bdrôle\b", r"\bmarrant\b", r"\bhumour\b", r"\brigole\b", r"\bblague\b",
+            r"\bamuse\b", r"\bsarcastique\b", r"\bironique\b", r"\bmoque\b", r"\btaquin\b",
+            r"\bhilarant\b", r"\bfun\b"],
+        6: [r"\bscience\b", r"\bétude\b", r"\bexpérience\b", r"\bpreuve\b", r"\bdonnées\b",
+            r"\bstatistique\b", r"\bhypothèse\b", r"\bthéorie\b", r"\brecherche\b",
+            r"\bacadémique\b", r"\banalyse rigoureuse\b", r"\bscientifique\b", r"\bpeer[- ]review\b"],
+        7: [r"\bhistoire\b", r"\bhistorique\b", r"\bpassé\b", r"\bantique\b", r"\bsiècle\b",
+            r"\bmoyen[- ]?âge\b", r"\brévolution\b", r"\bépoque\b", r"\bguerre\b",
+            r"\bcivilisation\b", r"\bantiquité\b", r"\bempire\b", r"\bévénement historique\b"],
+        8: [r"\bsimple\b", r"\bbébé\b", r"\benfant\b", r"\bfacile\b", r"\bpour les nuls\b",
+            r"\bdummy\b", r"\bcomprens?ion\b", r"\bc'est quoi\b", r"\bdéfinition simple\b",
+            r"\bcomme si j'avais 5 ans\b", r"\bcomme à un enfant\b"],
+    }
+
+    scores = {i: 0 for i in range(len(personnalites))}
+    for idx, patterns in mots_cles.items():
+        if idx >= len(personnalites):
+            continue
+        for pat in patterns:
+            if re.search(pat, q):
+                scores[idx] += 1
+
+    best = max(scores, key=scores.get)
+    if scores[best] > 0:
+        return best
+    return 0  # Assistant par défaut
+
+
+# ========================= 0. VÉRIFICATION INTERNET =========================
+
+def check_internet(timeout: float = 3.0) -> bool:
+    """
+    Vérifie si une connexion Internet est disponible.
+    Essaie de contacter duckduckgo.com (port 443) pour la recherche web.
+    """
+    import socket
+    try:
+        host = socket.gethostbyname("duckduckgo.com")
+        s = socket.create_connection((host, 443), timeout=timeout)
+        s.close()
+        return True
+    except Exception:
+        return False
+
 
 # ========================= 1. TTS (SYNTHÈSE VOCALE) =========================
 
@@ -358,6 +458,45 @@ def heure_actuelle() -> str:
     return datetime.now().strftime("%A %d %B %Y, %H:%M:%S")
 
 
+# --- RECHERCHE WEB (DuckDuckGo) ---
+
+def rechercher_web(requete: str, n_resultats: int = 3) -> str:
+    """
+    Recherche sur le web via DuckDuckGo (gratuit, sans clé API).
+    Retourne un texte avec les titres et snippets des résultats.
+    """
+    if not HAS_DUCKDUCKGO:
+        return "Erreur : bibliothèque 'duckduckgo-search' non installée. Tapez : pip install duckduckgo-search"
+
+    if not check_internet():
+        return "Vous semblez hors ligne. Je ne peux pas effectuer de recherche web pour l'instant. Vérifiez votre connexion Internet."
+
+    try:
+        n = int(n_resultats)
+        if n < 1:
+            n = 1
+        if n > 10:
+            n = 10
+    except Exception:
+        n = 3
+
+    try:
+        with DDGS() as ddgs:
+            results = ddgs.text(requete, max_results=n)
+            if not results:
+                return "Aucun résultat trouvé pour cette recherche."
+
+            lines = []
+            for i, r in enumerate(results, 1):
+                title = r.get("title", "Sans titre")
+                body = r.get("body", "")
+                href = r.get("href", "")
+                lines.append(f"{i}. {title}\n{body}\nSource: {href}")
+            return "\n\n".join(lines)
+    except Exception as e:
+        return f"Erreur lors de la recherche web : {e}"
+
+
 # --- RAG ---
 _rag_collection = None
 
@@ -518,6 +657,7 @@ AVAILABLE_FUNCTIONS = {
     "calculer": calculer,
     "heure_actuelle": heure_actuelle,
     "creer_document": creer_document,
+    "rechercher_web": rechercher_web,
 }
 
 TOOLS = [
@@ -544,6 +684,26 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "rechercher_web",
+            "description": (
+                "Effectue une recherche sur le web via DuckDuckGo pour obtenir des informations à jour. "
+                "À utiliser uniquement quand l'utilisateur pose une question sur l'actualité, la météo, "
+                "les cours boursiers, les événements récents, ou tout sujet qui pourrait avoir changé "
+                "après 2024. La recherche est gratuite et ne nécessite pas de clé API."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "requete": {"type": "string", "description": "La requête de recherche (ex: 'météo Paris', 'cours Bitcoin aujourd'hui', 'résultat match France')"},
+                    "n_resultats": {"type": "integer", "description": "Nombre de résultats souhaités (1-10, défaut 3)"}
+                },
+                "required": ["requete"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "creer_document",
             "description": (
                 "Crée un fichier document (txt, md, csv, json, docx, pdf) dans le dossier outputs/. "
@@ -562,6 +722,10 @@ TOOLS = [
         }
     }
 ]
+
+if not HAS_DUCKDUCKGO:
+    # Retirer l'outil recherche web si la bibliothèque n'est pas installée
+    TOOLS = [t for t in TOOLS if t.get("function", {}).get("name") != "rechercher_web"]
 
 if HAS_CHROMADB:
     TOOLS.append({
@@ -662,7 +826,23 @@ def _parse_args(args):
     return {}
 
 
-def run_text_agent(history, user_msg):
+def run_text_agent(history, user_msg, system_prompt: str = None):
+    """
+    Gère un tour de conversation texte avec tool calling.
+    Injecte le system_prompt au début de l'historique si fourni.
+    """
+    # Injecter le system prompt si présent et non déjà en place
+    if system_prompt:
+        has_system = any(m.get("role") == "system" for m in history)
+        if not has_system:
+            history.insert(0, {"role": "system", "content": system_prompt})
+        else:
+            # Mettre à jour le system prompt existant
+            for i, m in enumerate(history):
+                if m.get("role") == "system":
+                    history[i]["content"] = system_prompt
+                    break
+
     history.append({"role": "user", "content": user_msg})
     response = ollama.chat(model=MODEL_TEXT, messages=history, tools=TOOLS)
 
@@ -756,9 +936,58 @@ def main():
 
         st.divider()
 
+        # Personnalité
+        personnalites = load_personnalites()
+        noms_personnalites = [p["nom"] for p in personnalites]
+        if "personnalite_auto" not in st.session_state:
+            st.session_state.personnalite_auto = True
+        if "personnalite_idx" not in st.session_state:
+            st.session_state.personnalite_idx = 0
+        if "personnalite_detected_idx" not in st.session_state:
+            st.session_state.personnalite_detected_idx = 0
+
+        auto_detect = st.checkbox("🤖 Détection auto des personnalités", value=st.session_state.personnalite_auto)
+
+        if auto_detect:
+            st.session_state.personnalite_auto = True
+            detected_idx = st.session_state.get("personnalite_detected_idx", 0)
+            detected_nom = noms_personnalites[detected_idx] if 0 <= detected_idx < len(noms_personnalites) else noms_personnalites[0]
+            st.success(f"🎭 Actuel : {detected_nom}")
+            st.caption("L'agent change de ton selon vos questions.")
+            personnalite_idx = detected_idx
+            personnalite_choisie = personnalites[personnalite_idx]
+        else:
+            st.session_state.personnalite_auto = False
+            personnalite_idx = st.selectbox(
+                "🎭 Personnalité (manuel)",
+                range(len(noms_personnalites)),
+                format_func=lambda i: noms_personnalites[i],
+                index=st.session_state.personnalite_idx
+            )
+            st.caption(personnalites[personnalite_idx].get("description", ""))
+            if personnalite_idx != st.session_state.personnalite_idx:
+                st.session_state.personnalite_idx = personnalite_idx
+                for key in ["messages", "internal_history"]:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.info(f"🎭 Personnalité changée : {personnalites[personnalite_idx]['nom']}. Historique texte réinitialisé.")
+            personnalite_choisie = personnalites[personnalite_idx]
+
+        st.divider()
+
+        # Indicateur connexion Internet
+        is_online = check_internet()
+        if is_online:
+            st.success("🌐 Connexion Internet : OK")
+        else:
+            st.warning("🌐 Connexion Internet : OFFLINE")
+
+        st.divider()
+
         # Options
         use_memory = st.checkbox("🧠 Mémoire persistante", value=False)
         use_rag = st.checkbox("📄 Recherche documents", value=False)
+        use_web = st.checkbox("🌐 Activer recherche web (DuckDuckGo)", value=False, disabled=not is_online)
         enable_tts = st.checkbox("🔊 Lire les réponses à voix haute", value=tts.ok)
         enable_stt = st.checkbox("🎤 Activer le micro (bouton ci-dessous)", value=False)
 
@@ -816,6 +1045,8 @@ def main():
         st.session_state.current_image_name = None
     if "trigger_micro" not in st.session_state:
         st.session_state.trigger_micro = False
+    if "personnalite_idx" not in st.session_state:
+        st.session_state.personnalite_idx = 0
 
     # Charger mémoire
     if use_memory and not st.session_state.messages:
@@ -838,25 +1069,33 @@ def main():
                 st.markdown(msg["content"])
 
     # ==================== TRAITEMENT MICRO ====================
-    if st.session_state.trigger_micro and enable_stt and stt.ok:
-        st.session_state.trigger_micro = False
-        with st.spinner("🎤 J'écoute..."):
-            heard = stt.listen()
-        if heard:
-            st.info(f"👤 Vous avez dit : *{heard}*")
-            # Traiter comme input utilisateur
-            process_input(heard, uploaded_file, use_memory, enable_tts, tts)
-        else:
-            st.warning("Je n'ai pas compris. Veuillez réessayer ou taper votre message.")
+        if st.session_state.trigger_micro and enable_stt and stt.ok:
+            st.session_state.trigger_micro = False
+            with st.spinner("🎤 J'écoute..."):
+                heard = stt.listen()
+            if heard:
+                st.info(f"👤 Vous avez dit : *{heard}*")
+                # Détection auto de la personnalité avant traitement
+                if auto_detect:
+                    st.session_state.personnalite_detected_idx = detecter_personnalite_auto(heard, personnalites)
+                    personnalite_choisie = personnalites[st.session_state.personnalite_detected_idx]
+                # Traiter comme input utilisateur
+                process_input(heard, uploaded_file, use_memory, enable_tts, tts, system_prompt=personnalite_choisie.get("system_prompt"), personnalite_nom=personnalite_choisie.get("nom") if auto_detect else None)
+            else:
+                st.warning("Je n'ai pas compris. Veuillez réessayer ou taper votre message.")
 
     # ==================== INPUT TEXTE ====================
     user_input = st.chat_input("Posez votre question, décrivez une image, ou demandez un document...")
 
     if user_input:
-        process_input(user_input, uploaded_file, use_memory, enable_tts, tts)
+        # Détection auto de la personnalité avant traitement
+        if auto_detect:
+            st.session_state.personnalite_detected_idx = detecter_personnalite_auto(user_input, personnalites)
+            personnalite_choisie = personnalites[st.session_state.personnalite_detected_idx]
+        process_input(user_input, uploaded_file, use_memory, enable_tts, tts, system_prompt=personnalite_choisie.get("system_prompt"), personnalite_nom=personnalite_choisie.get("nom") if auto_detect else None)
 
 
-def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: bool, tts: TTSManager):
+def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: bool, tts: TTSManager, system_prompt: str = None, personnalite_nom: str = None):
     """Fonction centrale qui traite l'input utilisateur (texte ou micro)."""
 
     if uploaded_file is not None:
@@ -897,12 +1136,16 @@ def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: 
                         st.sidebar.info("Historique texte résumé.")
                     reply = run_text_agent(
                         st.session_state.internal_history,
-                        user_display_text
+                        user_display_text,
+                        system_prompt=system_prompt
                     )
             except Exception as e:
                 reply = f"❌ Erreur : {e}"
 
         st.markdown(reply)
+
+        if personnalite_nom:
+            st.caption(f"🎭 {personnalite_nom}")
 
         if "Document créé avec succès" in reply or "créé avec succès" in reply:
             st.success("📄 Document généré ! Vérifiez la sidebar.")

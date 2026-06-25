@@ -19,6 +19,9 @@ Cette suite d'agents IA vous permet de discuter avec une intelligence artificiel
 | 📝 **Export documents** | ✅ | Génère TXT, CSV, JSON, Word, PDF dans `outputs/` |
 | 🧠 **Mémoire** | ✅ | Se souvient de vos conversations entre sessions |
 | 📄 **RAG Documents** | ✅ | Lit et fouille vos PDF, Word, TXT |
+| 🌐 **Recherche web** | ✅ | Recherche en temps réel sur DuckDuckGo (si connecté) |
+| 🎭 **Personnalités** | ✅ | 8 personnalités : Assistant, Professeur, Développeur, Coach, Poète, Sarcastic, Scientifique, Enfant |
+| 🤖 **Détection auto personnalité** | ✅ | Change de ton automatiquement selon vos questions |
 | 🛡️ **GitHub Safe** | ✅ | Assistant pour publier votre code sans fuiter vos données |
 
 ---
