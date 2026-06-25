@@ -17,11 +17,16 @@ Cette suite d'agents IA vous permet de discuter avec une intelligence artificiel
 | 🔊 **Voix (TTS)** | ✅ | L'IA vous répond à voix haute (pyttsx3 ou Piper naturel) |
 | 🎤 **Micro (STT)** | ✅ | Parlez à l'IA (Faster-Whisper offline ou Google) |
 | 📝 **Export documents** | ✅ | Génère TXT, CSV, JSON, Word, PDF dans `outputs/` |
-| 🧠 **Mémoire** | ✅ | Se souvient de vos conversations entre sessions |
+| 🧠 **Mémoire (conversation)** | ✅ | Se souvient de vos conversations entre sessions |
+| 🧠 **Mémoire vectorielle** | ✅ | Souvenirs à long terme : nom, préférences, projets (illimité) |
 | 📄 **RAG Documents** | ✅ | Lit et fouille vos PDF, Word, TXT |
 | 🌐 **Recherche web** | ✅ | Recherche en temps réel sur DuckDuckGo (si connecté) |
 | 🎭 **Personnalités** | ✅ | 8 personnalités : Assistant, Professeur, Développeur, Coach, Poète, Sarcastic, Scientifique, Enfant |
 | 🤖 **Détection auto personnalité** | ✅ | Change de ton automatiquement selon vos questions |
+| 🧮 **Bac à sable Python** | ✅ | Exécute du code Python sécurisé : calculs complexes, graphiques, analyses de données |
+| 📅 **Agenda / TODO** | ✅ | Gère vos tâches, rappels et liste de courses dans un fichier local |
+| 🔍 **Pipeline Vision → Analyse** | ✅ | Uploadez une image de données → l'agent extrait les chiffres et les analyse avec Python |
+| 📡 **API REST** | ✅ | Accédez à l'agent depuis n'importe quel appareil sur votre réseau local (téléphone, tablette, autre PC) |
 | 🛡️ **GitHub Safe** | ✅ | Assistant pour publier votre code sans fuiter vos données |
 
 ---
@@ -98,7 +103,47 @@ Pour une voix humaine réaliste sans Internet :
 
 Déjà installé via `pip install -r requirements.txt`. Le modèle `tiny` (39 Mo) se télécharge automatiquement au premier lancement.
 
-### 6. (Optionnel) Recherche dans documents — ChromaDB
+### 6. (Optionnel) Recherche web — DuckDuckGo
+
+Pour que l'agent puisse chercher des informations à jour sur Internet (météo, actualités, cours boursiers) :
+```bash
+pip install duckduckgo-search
+```
+
+> **Gratuit, sans clé API, sans compte.** Seule la requête de recherche part sur Internet (ex: `"météo Paris"`). Votre conversation reste 100% locale.
+
+### 7. (Optionnel) Bac à sable Python — Calculs & Graphiques
+
+Pour que l'agent puisse exécuter du code Python (calculs complexes, graphiques matplotlib, analyses statistiques) :
+```bash
+pip install matplotlib numpy pandas
+```
+
+> Le bac à sable est **sécurisé** : pas d'accès au système, au réseau, ou à vos fichiers personnels. Les graphiques s'affichent directement dans l'interface.
+
+### 8. (Optionnel) Mémoire vectorielle (souvenirs)
+
+Pour que l'agent se souvienne de faits précis sur vous à long terme (prénom, projets, préférences) :
+```bash
+pip install sentence-transformers
+```
+
+> Le modèle `all-MiniLM-L6-v2` (~80 Mo) se télécharge automatiquement au premier lancement. Vos souvenirs sont stockés dans `chroma_souvenirs/` (exclu de Git).
+
+### 9. (Optionnel) Agenda / TODO — natif
+
+L'agenda fonctionne sans installation supplémentaire. Les tâches sont stockées dans `agenda.json` (exclu de Git).
+
+### 10. (Optionnel) API REST — accès depuis d'autres appareils
+
+Pour accéder à l'agent depuis votre téléphone, tablette, ou un autre PC sur le réseau local :
+```bash
+pip install fastapi uvicorn python-multipart
+```
+
+> Le serveur API expose l'agent via HTTP sur votre réseau Wi-Fi. **Ne pas exposer sur Internet** sans sécurisation.
+
+### 11. (Optionnel) Recherche dans documents — ChromaDB
 
 Placez vos fichiers `.pdf`, `.docx`, `.txt` dans un dossier `documents/` puis lancez une fois :
 ```bash
@@ -151,6 +196,12 @@ python agent_images.py
 python agent_git.py
 ```
 
+### Serveur API REST (accès depuis téléphone/autre PC)
+```bash
+uvicorn api_server:app --host 0.0.0.0 --port 8000
+```
+Ouvrez ensuite `http://localhost:8000/docs` pour tester, ou accédez depuis un autre appareil sur `http://VOTRE_IP:8000/chat`.
+
 ---
 
 ## 📁 Structure du projet
@@ -169,7 +220,8 @@ mon-agent-ia/
 │   ├── agent_images.py           ← Terminal : analyse d'images (vision)
 │   ├── agent_vocal.py            ← Terminal : voix pyttsx3 + micro Google
 │   ├── agent_vocal_offline.py    ← Terminal : voix Piper + micro Whisper (offline)
-│   └── agent_git.py              ← Terminal : assistant publication GitHub
+│   ├── agent_git.py              ← Terminal : assistant publication GitHub
+│   └── api_server.py             ← API REST : serveur FastAPI pour accès multi-appareils
 │
 ├── 📚 GUIDES (documentation)
 │   ├── GUIDE_INSTALLATION.md     ← Installation pas à pas
@@ -181,11 +233,17 @@ mon-agent-ia/
 │   ├── GUIDE_IMAGES.md          ← Guide analyse d'images
 │   ├── GUIDE_DOCUMENTS.md        ← Guide création de documents
 │   ├── GUIDE_GITHUB.md          ← Guide publication GitHub
+│   ├── GUIDE_PERSONNALITES.md   ← Guide personnalités (manuel + auto-détection)
+│   ├── GUIDE_BAC_A_SABLE.md    ← Guide exécution de code Python sécurisée
+│   ├── GUIDE_AGENDA.md         ← Guide agenda / TODO list
+│   ├── GUIDE_MEMOIRE_VECTORIELLE.md ← Guide mémoire vectorielle (souvenirs long terme)
+│   ├── GUIDE_PIPELINE.md         ← Guide pipeline Vision → Analyse de données
 │   └── IDEES_AMELIORATIONS.md   ← Feuille de route futures fonctionnalités
 │
 ├── ⚙️ CONFIGURATION
 │   ├── README.md                 ← Ce fichier (vitrine GitHub)
 │   ├── requirements.txt          ← Dépendances Python
+│   ├── personnalites.json       ← Fichier des personnalités (personnalisable)
 │   └── .gitignore              ← Fichiers exclus de Git (sécurité)
 │
 ├── 📁 DOSSIERS DE TRAVAIL (créés automatiquement, ignorés par Git)
@@ -193,6 +251,7 @@ mon-agent-ia/
 │   ├── outputs/                ← Documents générés par l'IA (🔒 jamais publié)
 │   ├── chroma_db_docs/         ← Base de données vectorielle (🔒 jamais publié)
 │   ├── memory*.json            ← Mémoires de conversation (🔒 jamais publié)
+│   ├── chroma_souvenirs/       ← Mémoire vectorielle long terme (🔒 jamais publié)
 │   ├── models/                 ← Modèles locaux (Piper, etc.)
 │   └── venv/                   ← Environnement Python (🔒 jamais publié)
 │
@@ -211,6 +270,10 @@ mon-agent-ia/
 | **📁 Uploader une image** | Glissez une photo → l'IA passe en mode **vision** et peut la décrire |
 | **🧠 Mémoire persistante** | Cochez pour que l'IA se souvienne de vos conversations d'hier |
 | **📄 Recherche documents** | Cochez si vous avez indexé des fichiers dans `documents/` |
+| **🌐 Activer recherche web** | Cochez pour chercher des infos à jour sur Internet (DuckDuckGo) |
+| **🤖 Détection auto personnalités** | Cochez pour que l'IA change de ton selon vos questions |
+| **🎭 Personnalité** | Choisissez manuellement (si auto désactivée) ou laissez la détection auto choisir |
+| **🌐 Connexion Internet** | Indicateur : vert (OK) ou orange (hors ligne) |
 | **🔊 Lire les réponses** | Cochez pour entendre l'IA parler à voix haute |
 | **🎤 Activer le micro** | Cochez pour faire apparaître le bouton **"Parler maintenant"** |
 | **🎙️ Parler maintenant** | Cliquez, parlez, l'IA transcrit et répond automatiquement |
@@ -220,7 +283,7 @@ mon-agent-ia/
 ### Exemples de requêtes
 
 ```markdown
-# Conversation simple
+# Conversation simple (🎭 Assistant par défaut)
 Vous > Quelle heure est-il ?
 Agent > Il est lundi 20 juin 2026, 14 heures 30.
 
@@ -228,6 +291,11 @@ Agent > Il est lundi 20 juin 2026, 14 heures 30.
 [Uploader facture_scan.jpg]
 Vous > Extrais tout le texte visible
 Agent > Facture n°104 — Date : 15/06/2026 — Montant : 1240,00 € TTC...
+
+# Recherche web (🌐 connexion Internet requise)
+[Cocher "Activer recherche web"]
+Vous > Quel temps fait-il à Paris aujourd'hui ?
+Agent > [recherche web : météo Paris] D'après les résultats, il fait 24°C...
 
 # Recherche documentaire
 [Cocher "Recherche documents"]
@@ -246,6 +314,100 @@ Agent > L'objet à droite est un vase bleu.
 [🎙️ Parler maintenant]
 Vous (voix) > "Calcule 15 fois 4"
 Agent (voix) > 15 multiplié par 4 égale 60.
+
+# Bac à sable Python (calculs & graphiques)
+Vous > Simule 1000 lancers de dé et affiche un histogramme
+Agent > [exécute Python + matplotlib]
+     📊 Graphique généré : outputs/sandbox/figure_1.png
+     [L'histogramme s'affiche directement dans le chat]
+
+Vous > Calcule la moyenne, médiane, écart-type de : 12, 15, 18, 22, 5, 9, 30
+Agent > [exécute numpy]
+     Moyenne : 15.8, Médiane : 15.0, Écart-type : 8.3
+
+Vous > Crée un graphique en barres avec les ventes : Janvier 120, Février 150, Mars 110
+Agent > [exécute matplotlib]
+     📊 Graphique en barres généré
+
+# Pipeline Vision → Analyse (🔍 auto-détecté)
+[Uploader image_tableau.png avec des chiffres]
+Vous > "Fais un graphique en barres avec les données de cette image"
+Agent > 🔍 Extraction des données de l'image...
+     [LLaVA extrait : "Mois,Ventes\nJanvier,120\nFévrier,150\nMars,110"]
+Agent > [exécute Python avec matplotlib]
+     📊 Graphique en barres généré : outputs/sandbox/figure_1.png
+     [Image affichée dans le chat]
+     Moyenne : 126.7, Max : 150 (Février)
+
+Vous > "Calcule la moyenne des montants sur cette facture"
+[Uploader facture.png]
+Agent > 🔍 Extraction des données...
+     [LLaVA extrait les montants : 1240, 850, 3200]
+Agent > [exécute Python]
+     Moyenne : 1763.33 €, Total : 5290 €
+
+# Agenda / TODO (📅 natif, pas d'installation)
+Vous > Rappelle-moi d'appeler le dentiste demain à 14h
+Agent > ✅ Tâche ajoutée : "Appeler le dentiste" (demain, priorité normale)
+
+Vous > Ajoute "Acheter du lait" à ma liste de courses avec priorité haute
+Agent > ✅ Tâche ajoutée : "Acheter du lait" (priorité haute)
+
+Vous > Que dois-je faire aujourd'hui ?
+Agent > 📋 Vos tâches :
+     1. ⬜ Acheter du lait [haute]
+     2. ⬜ Appeler le dentiste (demain 14h)
+
+Vous > J'ai acheté le lait
+Agent > ✅ Tâche "Acheter du lait" marquée comme faite.
+
+# Personnalités auto-détectées (🤖 Détection auto activée)
+Vous > Apprends-moi les boucles while
+🎭 👨‍🏫 Professeur détecté
+Agent > Imagine que tu comptes des bonbons dans un bocal...
+
+Vous > Écris-moi un script Python
+🎭 👨‍💻 Développeur détecté
+Agent > for i in range(10): print(i)
+
+Vous > Raconte-moi une blague sur les informaticiens
+🎭 😏 Sarcastic détecté
+Agent > Oh, une blague ? Pourquoi les programmeurs confondent-ils Noël et Halloween ?
+
+# Mémoire vectorielle (🧠 souvenirs automatiques)
+Vous > Mon chat s'appelle Rouxy et il a 3 ans
+Agent > Quel joli nom ! Rouxy est un chat de 3 ans.
+🧠 2 souvenir(s) stocké(s).
+
+... (50 conversations plus tard, l'agent a résumé 3 fois) ...
+
+Vous > Comment s'appelle mon chat ?
+[Agent cherche dans ses souvenirs vectoriels]
+Agent > Votre chat s'appelle Rouxy ! 🐱
+
+Vous > Quel projet je travaille en ce moment ?
+[Agent cherche dans ses souvenirs]
+Agent > Vous travaillez sur votre jardinage automatisé avec Arduino.
+
+# API REST (📡 depuis téléphone/autre PC)
+# 1. Lancer le serveur : uvicorn api_server:app --host 0.0.0.0 --port 8000
+# 2. Depuis un autre appareil sur le même Wi-Fi :
+
+curl -X POST http://192.168.1.10:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Quelle heure est-il ?"}'
+# Réponse : {"reply": "Il est lundi 20 juin 2026, 14 heures 30.", ...}
+
+# Depuis Python (téléphone, autre PC) :
+import requests
+r = requests.post("http://192.168.1.10:8000/chat", json={"message": "Calcule 15 * 4"})
+print(r.json()["reply"])  # 15 × 4 = 60
+
+# Avec image (base64) :
+with open("photo.png", "rb") as f:
+    b64 = base64.b64encode(f.read()).decode()
+requests.post("http://192.168.1.10:8000/chat",
+    json={"message": "Décris cette image", "image_b64": b64})
 ```
 
 ---
@@ -282,6 +444,21 @@ Lisez `EXPLICATION_CODE.md` pour comprendre le fonctionnement comme si vous n'av
 | **Le micro ne comprend rien** | Parlez près du micro, dans un endroit calme. Vérifiez que `pyaudio` est installé. |
 | **ChromaDB introuvable** | Lancez une fois `python agent_documents.py` pour créer la base. |
 | **Piper-TTS introuvable** | Vérifiez le chemin `models/piper/piper.exe` (Windows) ou `models/piper/piper` (Linux). |
+| **Recherche web grisée** | Vérifiez votre connexion Internet (l'indicateur dans la sidebar). Installez `pip install duckduckgo-search`. |
+| **Personnalité ne change pas** | Vérifiez que vous avez bien activé "Détection auto" ou changé le menu manuel. L'IA ne change pas de rôle en pleine réponse. |
+| **La personnalité auto est fausse** | La détection est basée sur des mots-clés. Ajoutez des mots explicites (ex: "apprends-moi", "code Python", "blague"). Vous pouvez créer vos propres règles dans `personnalites.json`. |
+| **Bac à sable : "élément interdit"** | Le code contenait une commande système (os, subprocess, socket, etc.) ou un mot-clé bloqué. Demandez à l'IA de réécrire le code sans ces éléments. |
+| **Bac à sable : timeout / lent** | Le code a dépassé 30 secondes (boucle infinie ?). Vérifiez que matplotlib, numpy sont installés (`pip install matplotlib numpy`). |
+| **Agenda introuvable** | Le fichier `agenda.json` est créé automatiquement au premier ajout. Si vous ne le voyez pas, demandez à l'agent : *"Ajoute une tâche test"*. |
+| **L'agent ne trouve pas ma tâche** | L'agent identifie les tâches par leur ID unique (ex: `t_1234_5678`). Si vous ne le connaissez pas, dites le **nom** exact : *"Marque 'Appeler le dentiste' comme fait"*. L'agent peut faire une recherche partielle. |
+| **Mémoire vectorielle : pas de souvenirs** | Vérifiez que `sentence-transformers` est installé (`pip install sentence-transformers`). Le modèle `all-MiniLM-L6-v2` (~80 Mo) se télécharge au premier lancement. |
+| **L'agent oublie mes souvenirs** | La mémoire vectorielle fonctionne par similarité. Si vous posez une question très différente de ce que vous avez dit avant, l'agent peut ne pas trouver le souvenir. Essayez avec des mots plus proches. |
+| **Pipeline Vision : "aucune donnée extraite"** | L'image est peut-être floue, le texte est trop petit, ou LLaVA ne reconnaît pas les chiffres. Essayez avec une image plus nette (contraste élevé, texte noir sur blanc). |
+| **Pipeline Vision : données erronées** | LLaVA est un modèle de vision, pas un OCR professionnel. Il peut confondre des chiffres (ex: `120` → `128`). Vérifiez toujours les données extraites avant d'agir sur elles. |
+| **Pipeline Vision : le graphique est vide** | L'extraction a peut-être échoué ou les données n'étaient pas au format attendu. Demandez "Extrais les données brutes d'abord" pour vérifier. |
+| **API REST : "Connexion refusée"** | Vérifiez que `uvicorn api_server:app --host 0.0.0.0 --port 8000` est lancé. Vérifiez que vous utilisez la bonne IP (`ipconfig` sur Windows). |
+| **API REST : lenteur** | L'API partage le GPU avec l'interface web. Ne les utilisez pas simultanément. |
+| **API REST : pas d'accès depuis l'extérieur** | Par défaut, l'API est uniquement sur votre réseau local (Wi-Fi). Ne la forward pas sur Internet sans sécurisation (authentification, HTTPS). |
 
 ---
 
@@ -300,6 +477,11 @@ Projet personnel et éducatif. Utilisez-le librement pour votre usage privé. Le
 - **Piper** : synthèse vocale offline (https://github.com/rhasspy/piper)
 - **Faster-Whisper** : reconnaissance vocale offline (https://github.com/SYSTRAN/faster-whisper)
 - **ChromaDB** : base de données vectorielle (https://www.trychroma.com)
+- **DuckDuckGo Search** : recherche web gratuite (https://github.com/deedy5/duckduckgo-search)
+- **Matplotlib** : graphiques Python (https://matplotlib.org)
+- **NumPy** : calculs scientifiques (https://numpy.org)
+- **Pandas** : manipulation de données (https://pandas.pydata.org)
+- **Sentence-Transformers** : embeddings vectoriels pour la mémoire long terme (https://www.sbert.net)
 - **Streamlit** : interface web (https://streamlit.io)
 
 ---
