@@ -82,6 +82,7 @@ except ImportError:
 
 try:
     import chromadb
+    from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
     HAS_CHROMADB = True
 except ImportError:
     HAS_CHROMADB = False
@@ -458,6 +459,125 @@ def heure_actuelle() -> str:
     return datetime.now().strftime("%A %d %B %Y, %H:%M:%S")
 
 
+# --- AGENDA / TODO ---
+
+AGENDA_FILE = "agenda.json"
+
+
+def _charger_agenda():
+    if not os.path.exists(AGENDA_FILE):
+        return {"taches": []}
+    try:
+        with open(AGENDA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict) and "taches" in data:
+                return data
+            return {"taches": []}
+    except Exception:
+        return {"taches": []}
+
+
+def _sauver_agenda(data):
+    try:
+        with open(AGENDA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        pass
+
+
+def _generer_id_tache():
+    import random
+    return f"t_{random.randint(1000, 9999)}_{random.randint(1000, 9999)}"
+
+
+def ajouter_tache(nom: str, description: str = None, date: str = None, priorite: str = "normale") -> str:
+    """Ajoute une tâche à l'agenda."""
+    if not nom or not str(nom).strip():
+        return "Erreur : le nom de la tâche ne peut pas être vide."
+    data = _charger_agenda()
+    tache = {
+        "id": _generer_id_tache(),
+        "nom": str(nom).strip(),
+        "description": str(description).strip() if description else None,
+        "date": str(date).strip() if date else None,
+        "priorite": str(priorite).lower().strip() if priorite else "normale",
+        "fait": False,
+        "date_creation": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    }
+    data["taches"].append(tache)
+    _sauver_agenda(data)
+    return f"✅ Tâche ajoutée : '{tache['nom']}' (ID: {tache['id']}, priorité: {tache['priorite']})"
+
+
+def lister_taches(filtre_date: str = None, filtre_statut: str = None, limite: int = 20) -> str:
+    """Liste les tâches de l'agenda, avec filtres optionnels."""
+    data = _charger_agenda()
+    taches = data.get("taches", [])
+    if not taches:
+        return "📋 Votre agenda est vide."
+
+    taches_filtrees = []
+    for t in taches:
+        if filtre_date and t.get("date") != filtre_date:
+            continue
+        if filtre_statut:
+            fs = str(filtre_statut).lower().strip()
+            if fs in ("fait", "done", "terminé", "terminée") and not t.get("fait"):
+                continue
+            if fs in ("afaire", "à faire", "todo", "non fait", "non fait") and t.get("fait"):
+                continue
+        taches_filtrees.append(t)
+
+    taches_filtrees = taches_filtrees[:int(limite)] if limite else taches_filtrees
+
+    if not taches_filtrees:
+        return "📋 Aucune tâche ne correspond à vos critères."
+
+    lignes = []
+    for i, t in enumerate(taches_filtrees, 1):
+        statut = "✅" if t.get("fait") else "⬜"
+        date_str = f" ({t['date']})" if t.get("date") else ""
+        prio = f" [{t.get('priorite','normale')}]" if t.get('priorite') and t.get('priorite') != 'normale' else ""
+        desc = f" — {t['description']}" if t.get('description') else ""
+        lignes.append(f"{i}. {statut} {t['nom']}{date_str}{prio}{desc} (ID: {t['id']})")
+
+    return "📋 Vos tâches :\n" + "\n".join(lignes)
+
+
+def marquer_fait(tache_id: str) -> str:
+    """Marque une tâche comme faite."""
+    data = _charger_agenda()
+    for t in data.get("taches", []):
+        if t.get("id") == tache_id:
+            t["fait"] = True
+            _sauver_agenda(data)
+            return f"✅ Tâche '{t['nom']}' marquée comme faite."
+    # Recherche partielle si l'ID exact ne correspond pas (l'IA peut se tromper)
+    for t in data.get("taches", []):
+        if tache_id.lower() in t.get("nom", "").lower() or tache_id.lower() in t.get("id", "").lower():
+            t["fait"] = True
+            _sauver_agenda(data)
+            return f"✅ Tâche '{t['nom']}' (ID: {t['id']}) marquée comme faite."
+    return f"❌ Tâche '{tache_id}' introuvable."
+
+
+def supprimer_tache(tache_id: str) -> str:
+    """Supprime une tâche de l'agenda."""
+    data = _charger_agenda()
+    original_len = len(data.get("taches", []))
+    data["taches"] = [t for t in data.get("taches", []) if t.get("id") != tache_id]
+    if len(data["taches"]) < original_len:
+        _sauver_agenda(data)
+        return f"🗑️ Tâche supprimée."
+    # Recherche partielle
+    nouvelles = [t for t in data.get("taches", []) if tache_id.lower() not in t.get("nom", "").lower() and tache_id.lower() not in t.get("id", "").lower()]
+    if len(nouvelles) < len(data["taches"]):
+        data["taches"] = nouvelles
+        _sauver_agenda(data)
+        return f"🗑️ Tâche correspondant à '{tache_id}' supprimée."
+    return f"❌ Tâche '{tache_id}' introuvable."
+
+
 # --- RECHERCHE WEB (DuckDuckGo) ---
 
 def rechercher_web(requete: str, n_resultats: int = 3) -> str:
@@ -546,6 +666,211 @@ def rechercher_documents(requete: str, n_resultats: int = 5) -> str:
             loc = f"position {page}"
         passages.append(f"---\nSource: {source} ({loc})\n{doc}")
     return "\n".join(passages)
+
+
+# --- BAC À SABLE PYTHON ---
+
+def executer_python(code: str, nom_fichier_sortie: str = None) -> str:
+    """
+    Exécute du code Python dans un bac à sable sécurisé.
+    Interdit : os.system, subprocess, socket, urllib, eval, exec, fichiers hors sandbox.
+    Retourne stdout, stderr, et les fichiers (graphiques) créés.
+    """
+    mots_interdits = [
+        "import os", "from os", "import subprocess", "from subprocess",
+        "import sys", "import socket", "import urllib", "import requests",
+        "import ftplib", "import telnetlib", "import smtplib", "import email",
+        "import http", "import webbrowser", "import pip", "import importlib",
+        "eval(", "exec(", "__import__(", "compile(", "open(", "file(",
+        "subprocess.run", "subprocess.call", "subprocess.Popen", "subprocess.check_output",
+        "os.system", "os.popen", "os.remove", "os.rmdir", "os.unlink", "os.rename", "os.replace",
+        "os.chmod", "os.mkdir", "os.makedirs", "os.walk", "os.listdir", "os.scandir",
+        "shutil.rmtree", "shutil.copy", "shutil.move", "shutil.copytree",
+        "breakpoint(", "input(", "raw_input(", "exit(", "quit(",
+    ]
+    code_lower = code.lower()
+    for mot in mots_interdits:
+        if mot.lower() in code_lower:
+            return f"🛡️ **ERREUR SÉCURITÉ** : Le code contient un élément interdit : `{mot}`. Pour votre protection, l'accès au système, au réseau et aux fichiers hors du bac à sable est bloqué."
+
+    sandbox_dir = os.path.join(OUTPUTS_DIR, "sandbox")
+    os.makedirs(sandbox_dir, exist_ok=True)
+
+    # Wrapper qui capture stdout et sécurise matplotlib
+    wrapper = f'''import sys, json, os, io, traceback
+import matplotlib
+matplotlib.use('Agg')
+try:
+    import matplotlib.pyplot as plt
+except Exception:
+    plt = None
+try:
+    import numpy as np
+except Exception:
+    np = None
+try:
+    import pandas as pd
+except Exception:
+    pd = None
+
+sandbox_dir = {repr(sandbox_dir)}
+
+# Désactivation de fonctions dangereuses
+import subprocess, os as os_module
+subprocess.run = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("subprocess interdit"))
+subprocess.call = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("subprocess interdit"))
+subprocess.Popen = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("subprocess interdit"))
+os_module.system = lambda *a: (_ for _ in ()).throw(RuntimeError("os.system interdit"))
+os_module.popen = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("os.popen interdit"))
+os_module.remove = lambda *a: (_ for _ in ()).throw(RuntimeError("os.remove interdit"))
+os_module.rmdir = lambda *a: (_ for _ in ()).throw(RuntimeError("os.rmdir interdit"))
+os_module.unlink = lambda *a: (_ for _ in ()).throw(RuntimeError("os.unlink interdit"))
+os_module.rename = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("os.rename interdit"))
+os_module.replace = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("os.replace interdit"))
+os_module.chmod = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("os.chmod interdit"))
+
+stdout_buf = io.StringIO()
+stderr_buf = io.StringIO()
+old_out, old_err = sys.stdout, sys.stderr
+sys.stdout, sys.stderr = stdout_buf, stderr_buf
+
+result = {{"success": False, "output": "", "error": "", "files": []}}
+
+try:
+{chr(10).join("    " + line for line in code.split(chr(10)))}
+
+    if plt is not None:
+        for i in plt.get_fignums():
+            fig = plt.figure(i)
+            if {repr(nom_fichier_sortie)}:
+                fname = os.path.join(sandbox_dir, {repr(nom_fichier_sortie)})
+            else:
+                fname = os.path.join(sandbox_dir, f"figure_{{i}}.png")
+            fig.savefig(fname, dpi=150, bbox_inches='tight')
+            result["files"].append(fname)
+        plt.close('all')
+    result["success"] = True
+except Exception as e:
+    result["error"] = traceback.format_exc()
+
+sys.stdout, sys.stderr = old_out, old_err
+result["output"] = stdout_buf.getvalue()
+result["stderr"] = stderr_buf.getvalue()
+print("\n" + json.dumps(result))
+'''
+
+    fd, script_path = tempfile.mkstemp(suffix=".py", dir=sandbox_dir)
+    os.close(fd)
+    try:
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(wrapper)
+
+        proc = subprocess.run(
+            [sys.executable, script_path],
+            capture_output=True, text=True, timeout=30, cwd=sandbox_dir
+        )
+
+        # Extraire le JSON de la dernière ligne
+        lines = proc.stdout.strip().split('\n')
+        data = None
+        for line in reversed(lines):
+            line = line.strip()
+            if line.startswith('{'):
+                try:
+                    data = json.loads(line)
+                    break
+                except Exception:
+                    continue
+
+        if data is None:
+            return f"⚠️ Erreur d'exécution (pas de JSON retourné).\n\n**Sortie brute :**\n```\n{proc.stdout[:1500]}\n```\n**Erreur :**\n```\n{proc.stderr[:500]}\n```"
+
+        parts = []
+        if data.get("output", "").strip():
+            parts.append(f"📤 **Sortie standard :**\n```\n{data['output'].strip()[:3000]}\n```")
+        if data.get("stderr", "").strip():
+            parts.append(f"⚠️ **Messages :**\n```\n{data['stderr'].strip()[:1000]}\n```")
+        if data.get("error", "").strip():
+            parts.append(f"❌ **Erreur Python :**\n```\n{data['error'].strip()[:2000]}\n```")
+
+        files = data.get("files", [])
+        if files:
+            parts.append(f"📁 **Fichiers créés :** {', '.join(os.path.basename(f) for f in files)}")
+
+        if not parts:
+            parts.append("✅ Code exécuté avec succès (aucune sortie).")
+
+        return "\n\n".join(parts)
+
+    except subprocess.TimeoutExpired:
+        return "⏱️ **ERREUR** : Le code a dépassé le temps d'exécution maximum (30 secondes). Vérifiez les boucles infinies."
+    except Exception as e:
+        return f"⚠️ **ERREUR lors de l'exécution** : {e}"
+    finally:
+        if os.path.exists(script_path):
+            os.remove(script_path)
+
+
+# --- MÉMOIRE VECTORIELLE (SOUVENIRS) ---
+_souvenirs_collection = None
+
+def init_souvenirs():
+    """Initialise la base de données vectorielle des souvenirs."""
+    global _souvenirs_collection
+    if not HAS_CHROMADB:
+        return False
+    try:
+        ef = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+        client = chromadb.PersistentClient(path="chroma_souvenirs")
+        _souvenirs_collection = client.get_or_create_collection(
+            name="memoire_long_terme",
+            embedding_function=ef
+        )
+        return True
+    except Exception:
+        _souvenirs_collection = None
+        return False
+
+
+def stocker_souvenirs(facts: list[str]):
+    """Stocke une liste de faits dans la mémoire vectorielle."""
+    if not _souvenirs_collection or not facts:
+        return
+    import uuid
+    ids = [f"s_{uuid.uuid4().hex[:8]}" for _ in facts]
+    metas = [{"date": datetime.now().isoformat()} for _ in facts]
+    try:
+        _souvenirs_collection.add(documents=facts, metadatas=metas, ids=ids)
+    except Exception:
+        pass
+
+
+def chercher_souvenirs(query: str, n: int = 3) -> list[str]:
+    """Recherche les souvenirs les plus pertinents pour une question."""
+    if not _souvenirs_collection:
+        return []
+    try:
+        results = _souvenirs_collection.query(query_texts=[query], n_results=n)
+        docs = results.get("documents", [[]])[0]
+        return [d for d in docs if d] if docs else []
+    except Exception:
+        return []
+
+
+def extraire_souvenirs(user_msg: str, assistant_msg: str) -> list[str]:
+    """Demande au modèle d'extraire 1-3 faits clés de la conversation."""
+    prompt = [
+        {"role": "system", "content": "Tu es un extracteur de faits personnels. Résume cette conversation en 1 à 3 faits très courts (max 20 mots chacun) sur l'utilisateur. Exemples : 'Le chat de l'utilisateur s'appelle Rouxy', 'L'utilisateur travaille sur un projet Arduino', 'L'utilisateur préfère Python à JavaScript'. Si aucun fait personnel, réponds UNIQUEMENT 'AUCUN'. Ne réponds jamais autre chose que les faits ou AUCUN."},
+        {"role": "user", "content": f"Utilisateur : {user_msg}\nAssistant : {assistant_msg}\nFaits :"}
+    ]
+    try:
+        resp = ollama.chat(model=MODEL_TEXT, messages=prompt)
+        text = resp.message.content.strip() if resp.message.content else ""
+        if text.upper().startswith("AUCUN") or not text:
+            return []
+        return [f.strip("- • ").strip() for f in text.split("\n") if f.strip() and len(f.strip()) > 5]
+    except Exception:
+        return []
 
 
 # --- CRÉATION DOCUMENTS ---
@@ -658,6 +983,11 @@ AVAILABLE_FUNCTIONS = {
     "heure_actuelle": heure_actuelle,
     "creer_document": creer_document,
     "rechercher_web": rechercher_web,
+    "executer_python": executer_python,
+    "ajouter_tache": ajouter_tache,
+    "lister_taches": lister_taches,
+    "marquer_fait": marquer_fait,
+    "supprimer_tache": supprimer_tache,
 }
 
 TOOLS = [
@@ -698,6 +1028,106 @@ TOOLS = [
                     "n_resultats": {"type": "integer", "description": "Nombre de résultats souhaités (1-10, défaut 3)"}
                 },
                 "required": ["requete"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ajouter_tache",
+            "description": (
+                "Ajoute une tâche ou un rappel à l'agenda de l'utilisateur. "
+                "À utiliser quand l'utilisateur demande de se souvenir, de rappeler, d'ajouter à sa liste, "
+                "de planifier, ou de noter une tâche à faire."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "nom": {"type": "string", "description": "Titre court de la tâche (ex: 'Appeler le dentiste', 'Acheter du lait')"},
+                    "description": {"type": "string", "description": "Détails optionnels de la tâche"},
+                    "date": {"type": "string", "description": "Date d'échéance au format YYYY-MM-DD (ex: '2026-06-25') ou laisser vide"},
+                    "priorite": {"type": "string", "description": "basse, normale, haute, urgente. Défaut: normale"}
+                },
+                "required": ["nom"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "lister_taches",
+            "description": (
+                "Liste les tâches de l'agenda. À utiliser quand l'utilisateur demande ce qu'il doit faire, "
+                "son emploi du temps, sa liste de courses, ou ses rappels."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filtre_date": {"type": "string", "description": "Filtrer par date (YYYY-MM-DD) ou laisser vide pour toutes"},
+                    "filtre_statut": {"type": "string", "description": "'afaire' pour non-faites, 'fait' pour terminées, ou vide pour toutes"},
+                    "limite": {"type": "integer", "description": "Nombre maximum de tâches à afficher (1-50). Défaut: 20"}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "marquer_fait",
+            "description": (
+                "Marque une tâche comme terminée. À utiliser quand l'utilisateur dit qu'il a fait quelque chose, "
+                "ou qu'il veut cocher une tâche."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tache_id": {"type": "string", "description": "ID de la tâche (ex: 't_1234_5678') ou nom partiel de la tâche"}
+                },
+                "required": ["tache_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "supprimer_tache",
+            "description": (
+                "Supprime une tâche de l'agenda. À utiliser quand l'utilisateur veut annuler un rappel "
+                "ou supprimer une tâche de sa liste."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tache_id": {"type": "string", "description": "ID de la tâche ou nom partiel"}
+                },
+                "required": ["tache_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "executer_python",
+            "description": (
+                "Exécute du code Python dans un bac à sable sécurisé. "
+                "Utilise cet outil pour les calculs complexes, les graphiques (matplotlib), "
+                "les analyses statistiques (numpy/pandas), ou les transformations de données. "
+                "Le code ne peut pas accéder au système, au réseau, ou à vos fichiers personnels. "
+                "Les graphiques matplotlib sont automatiquement sauvegardés en PNG dans outputs/sandbox/."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Code Python complet à exécuter. N'incluez pas d'imports dangereux (os, subprocess, socket, etc.). Matplotlib, numpy, pandas sont disponibles."
+                    },
+                    "nom_fichier_sortie": {
+                        "type": "string",
+                        "description": "Nom optionnel pour les graphiques générés (ex: 'histogramme.png'). Défaut : figure_1.png"
+                    }
+                },
+                "required": ["code"]
             }
         }
     },
@@ -844,6 +1274,12 @@ def run_text_agent(history, user_msg, system_prompt: str = None):
                     break
 
     history.append({"role": "user", "content": user_msg})
+
+    # Chercher et injecter des souvenirs pertinents (mémoire vectorielle)
+    souvenirs = chercher_souvenirs(user_msg)
+    if souvenirs:
+        history.append({"role": "system", "content": f"Souvenirs pertinents de conversations précédentes : {' | '.join(souvenirs)}"})
+
     response = ollama.chat(model=MODEL_TEXT, messages=history, tools=TOOLS)
 
     while response.message.tool_calls:
@@ -886,6 +1322,31 @@ def run_text_agent(history, user_msg, system_prompt: str = None):
 
 
 # ========================= 8. AGENT VISION =========================
+
+def extract_data_from_image(image_b64: str) -> str:
+    """
+    Appelle LLaVA pour extraire les données brutes d'une image
+    (tableaux, chiffres, graphiques, texte structuré).
+    Retourne un texte brut avec les données extraites.
+    """
+    try:
+        response = ollama.chat(
+            model=MODEL_VISION,
+            messages=[{
+                "role": "user",
+                "content": (
+                    "Extrais TOUTES les données textuelles et numériques de cette image. "
+                    "Présente-les sous forme brute structurée (CSV, liste, ou tableau texte). "
+                    "Ne fais AUCUNE analyse, ne donne AUCUNE opinion. "
+                    "Juste les données brutes exactement comme elles apparaissent."
+                ),
+                "images": [image_b64]
+            }]
+        )
+        return response.message.content or "(aucune donnée extraite)"
+    except Exception as e:
+        return f"Erreur extraction vision : {e}"
+
 
 def run_vision_agent(vision_history, user_msg, image_b64):
     msgs = vision_history[-(MAX_VISION_HISTORY - 2):]
@@ -996,6 +1457,13 @@ def main():
                 st.success("Base documents OK.")
             else:
                 st.warning("Base introuvable. Lancez agent_documents.py d'abord.")
+
+        # Mémoire vectorielle (souvenirs) - initialisation silencieuse
+        souvenirs_ready = init_souvenirs()
+        if souvenirs_ready:
+            st.success("🧠 Mémoire vectorielle prête.")
+        else:
+            st.info("🧠 Mémoire vectorielle : installez `pip install sentence-transformers` pour activer les souvenirs long terme.")
 
         st.divider()
 
@@ -1123,11 +1591,44 @@ def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: 
         with st.spinner("Analyse en cours..."):
             try:
                 if is_vision:
-                    reply = run_vision_agent(
-                        st.session_state.vision_history,
-                        user_display_text,
-                        st.session_state.current_image_b64
-                    )
+                    # Détection pipeline Vision → Analyse de données (Python)
+                    mots_pipeline = [
+                        "graphique", "analyse", "analyser", "données", "csv", "calcul",
+                        "moyenne", "médiane", "statistique", "plot", "chart", "histogramme",
+                        "barres", "courbe", "total", "somme", "dataframe", "pandas", "numpy",
+                        "tableau", "excel", "chiffre", "nombre", "montant", "score",
+                        "pourcentage", "taux", "comparer", "évolution", "croissance",
+                        "décroissance", "minimum", "maximum", "min", "max", "tri", "rang", "classement"
+                    ]
+                    declenche_pipeline = user_input and any(m in user_input.lower() for m in mots_pipeline)
+
+                    if declenche_pipeline:
+                        # Étape 1 : Extraction des données brutes avec LLaVA
+                        st.markdown("🔍 *Extraction des données de l'image...*")
+                        extraction = extract_data_from_image(st.session_state.current_image_b64)
+
+                        # Étape 2 : Analyse avec Qwen + bac à sable Python
+                        pipeline_prompt = (
+                            f"Voici les données brutes extraites de l'image :\n"
+                            f"---\n{extraction}\n---\n\n"
+                            f"{user_display_text}"
+                        )
+                        if len(st.session_state.internal_history) > MAX_TEXT_HISTORY:
+                            st.session_state.internal_history = summarize_text_history(
+                                st.session_state.internal_history
+                            )
+                            st.sidebar.info("Historique texte résumé.")
+                        reply = run_text_agent(
+                            st.session_state.internal_history,
+                            pipeline_prompt,
+                            system_prompt=system_prompt
+                        )
+                    else:
+                        reply = run_vision_agent(
+                            st.session_state.vision_history,
+                            user_display_text,
+                            st.session_state.current_image_b64
+                        )
                 else:
                     if len(st.session_state.internal_history) > MAX_TEXT_HISTORY:
                         st.session_state.internal_history = summarize_text_history(
@@ -1147,6 +1648,16 @@ def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: 
         if personnalite_nom:
             st.caption(f"🎭 {personnalite_nom}")
 
+        # Afficher les graphiques/images générés par le bac à sable
+        sandbox_dir = os.path.join(OUTPUTS_DIR, "sandbox")
+        if os.path.exists(sandbox_dir):
+            img_files = [f for f in os.listdir(sandbox_dir) if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".bmp"))]
+            if img_files:
+                st.markdown("📊 **Graphiques générés :**")
+                for img_name in sorted(img_files):
+                    img_path = os.path.join(sandbox_dir, img_name)
+                    st.image(img_path, caption=img_name, use_container_width=True)
+
         if "Document créé avec succès" in reply or "créé avec succès" in reply:
             st.success("📄 Document généré ! Vérifiez la sidebar.")
             st.rerun()  # Rafraîchir la liste des documents
@@ -1155,6 +1666,13 @@ def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: 
 
     if use_memory:
         save_memory(st.session_state.internal_history)
+
+    # Extraction et stockage automatique des souvenirs (mémoire vectorielle)
+    if not is_vision and reply:
+        facts = extraire_souvenirs(user_display_text, reply)
+        if facts:
+            stocker_souvenirs(facts)
+            st.sidebar.info(f"🧠 {len(facts)} souvenir(s) stocké(s).")
 
     if enable_tts and tts.ok:
         tts.speak(reply)

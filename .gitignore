@@ -85,3 +85,9 @@ models/
 
 # 📁 Documents générés par l'agent (l'utilisateur les garde en local)
 outputs/
+
+# 📅 Agenda personnel
+agenda.json
+
+# 🧠 Mémoire vectorielle (souvenirs)
+chroma_souvenirs/
