@@ -1,7 +1,7 @@
 # 🤖🌟 Agent IA Local Ultime — Suite Complète 100% Offline
 
 > **Votre assistant intelligence artificielle complet, qui tourne entièrement sur votre PC.**  
-> Aucune donnée ne quitte votre ordinateur. Conversation, vision, voix, documents, mémoire — tout est local.
+> Aucune donnée ne quitte votre ordinateur. Conversation, vision, voix, documents, mémoire, multi-langue — tout est local.
 
 ---
 
@@ -12,6 +12,7 @@ Cette suite d'agents IA vous permet de discuter avec une intelligence artificiel
 | Capacité | Disponible | Description |
 |----------|------------|-------------|
 | 💬 **Chat texte** | ✅ | Conversation avec modèle local (Qwen 2.5) |
+| 🌍 **Multi-langue (i18n)** | ✅ | Polyglotte complet (FR, EN, ES, DE...) sur l'UI, les prompts, outils, voix et RAG |
 | 🧮 **Outils** | ✅ | Calculatrice, horloge, recherche dans documents |
 | 🖼️ **Vision** | ✅ | Analyse d'images, OCR, description de photos |
 | 🔊 **Voix (TTS)** | ✅ | L'IA vous répond à voix haute (pyttsx3 ou Piper naturel) |
@@ -98,6 +99,7 @@ Pour une voix humaine réaliste sans Internet :
 2. Dézippez dans `models/piper/` (créez le dossier)
 3. Téléchargez une voix française (`.onnx` + `.onnx.json`) : https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/fr
 4. Placez les deux fichiers dans `models/piper/`
+*(Pour le multi-langue, ajoutez également les modèles anglais ou espagnol dans ce dossier)*.
 
 ### 5. (Optionnel) Reconnaissance vocale offline — Faster-Whisper
 
@@ -150,6 +152,13 @@ Placez vos fichiers `.pdf`, `.docx`, `.txt` dans un dossier `documents/` puis la
 python agent_documents.py
 ```
 Cela crée la base de données vectorielle `chroma_db_docs/`.
+
+### 12. (Optionnel) Support Multi-langue (i18n)
+
+L'agent gère nativement plusieurs langues (Français, Anglais, Espagnol...) via un sélecteur dans la sidebar.
+- **Interface** : Gérée par le fichier `translations.py`.
+- **Voix & Micro** : Adaptation automatique de la langue Whisper et de l'accent de synthèse (Piper/Edge-TTS).
+- **RAG Multi-langue** : Pour interroger des documents dans une autre langue (RAG croisé), remplacez le modèle d'embedding par `paraphrase-multilingual-MiniLM-L12-v2`.
 
 ---
 
@@ -210,7 +219,7 @@ Ouvrez ensuite `http://localhost:8000/docs` pour tester, ou accédez depuis un a
 mon-agent-ia/
 │
 ├── 🤖 AGENTS (programmes principaux)
-│   ├── app_ultime.py              ← 🌟 TOUT-EN-UN (web : texte + vision + voix + micro + documents + mémoire)
+│   ├── app_ultime.py              ← 🌟 TOUT-EN-UN (web : texte + vision + voix + micro + documents + mémoire + multi-langue)
 │   ├── app_hybride_v2.py         ← Web : texte + vision + documents + mémoire
 │   ├── app_hybride.py            ← Web : texte + vision + mémoire
 │   ├── app_web.py                ← Web : chat simple Streamlit
@@ -238,12 +247,14 @@ mon-agent-ia/
 │   ├── GUIDE_AGENDA.md         ← Guide agenda / TODO list
 │   ├── GUIDE_MEMOIRE_VECTORIELLE.md ← Guide mémoire vectorielle (souvenirs long terme)
 │   ├── GUIDE_PIPELINE.md         ← Guide pipeline Vision → Analyse de données
+│   ├── GUIDE_MULTI_LANGUE.md     ← 🌍 Guide pour rendre l'agent 100% polyglotte (i18n)
 │   └── IDEES_AMELIORATIONS.md   ← Feuille de route futures fonctionnalités
 │
 ├── ⚙️ CONFIGURATION
 │   ├── README.md                 ← Ce fichier (vitrine GitHub)
 │   ├── requirements.txt          ← Dépendances Python
 │   ├── personnalites.json       ← Fichier des personnalités (personnalisable)
+│   ├── translations.py          ← 🌍 Dictionnaire des langues (FR, EN, ES...) pour l'interface
 │   └── .gitignore              ← Fichiers exclus de Git (sécurité)
 │
 ├── 📁 DOSSIERS DE TRAVAIL (créés automatiquement, ignorés par Git)
@@ -267,6 +278,7 @@ mon-agent-ia/
 
 | Élément | Fonction |
 |---------|----------|
+| **🌍 Langue / Language** | Menu déroulant pour changer instantanément la langue de l'interface, de l'IA et de la voix (FR, EN, ES...) |
 | **📁 Uploader une image** | Glissez une photo → l'IA passe en mode **vision** et peut la décrire |
 | **🧠 Mémoire persistante** | Cochez pour que l'IA se souvienne de vos conversations d'hier |
 | **📄 Recherche documents** | Cochez si vous avez indexé des fichiers dans `documents/` |
@@ -286,6 +298,15 @@ mon-agent-ia/
 # Conversation simple (🎭 Assistant par défaut)
 Vous > Quelle heure est-il ?
 Agent > Il est lundi 20 juin 2026, 14 heures 30.
+
+# Multi-langue (🌍 changement de langue en direct)
+[Sélectionner "🇬🇧 English" dans la sidebar]
+Vous > How does photosynthesis work?
+Agent > Photosynthesis is a process used by plants to convert light energy into chemical energy...
+
+[Sélectionner "🇪🇸 Español" dans la sidebar]
+Vous > ¿Qué hora es?
+Agent > Fecha y hora actual: 20/06/2026 14:35:10
 
 # Analyse d'image
 [Uploader facture_scan.jpg]
@@ -375,7 +396,7 @@ Vous > Raconte-moi une blague sur les informaticiens
 Agent > Oh, une blague ? Pourquoi les programmeurs confondent-ils Noël et Halloween ?
 
 # Mémoire vectorielle (🧠 souvenirs automatiques)
-Vous > Mon chat s'appelle Rouxy et il a 3 ans
+Vous > Mon chat s'appelle Rouxy et il a 3 রচন
 Agent > Quel joli nom ! Rouxy est un chat de 3 ans.
 🧠 2 souvenir(s) stocké(s).
 
@@ -446,6 +467,9 @@ Lisez `EXPLICATION_CODE.md` pour comprendre le fonctionnement comme si vous n'av
 | **Piper-TTS introuvable** | Vérifiez le chemin `models/piper/piper.exe` (Windows) ou `models/piper/piper` (Linux). |
 | **Recherche web grisée** | Vérifiez votre connexion Internet (l'indicateur dans la sidebar). Installez `pip install duckduckgo-search`. |
 | **Personnalité ne change pas** | Vérifiez que vous avez bien activé "Détection auto" ou changé le menu manuel. L'IA ne change pas de rôle en pleine réponse. |
+| **L'IA continue de répondre en français** | Vérifiez que vous avez bien sélectionné la langue dans la sidebar. L'injection du prompt force l'anglais/espagnol, mais si la question d'origine contient des directives contradictoires, reformulez. |
+| **Voix inaudible / mauvais accent** | Si l'IA lit de l'anglais avec une voix française, vérifiez que le catalogue de voix (EdgeTTS / Piper) a bien basculé sur le modèle natif de la langue. |
+| **RAG introuvable en changeant de langue** | Le modèle `all-MiniLM-L6-v2` est anglophone. Pour le RAG croisé parfait, passez sur `paraphrase-multilingual-MiniLM-L12-v2` et ré-indexez vos documents. |
 | **La personnalité auto est fausse** | La détection est basée sur des mots-clés. Ajoutez des mots explicites (ex: "apprends-moi", "code Python", "blague"). Vous pouvez créer vos propres règles dans `personnalites.json`. |
 | **Bac à sable : "élément interdit"** | Le code contenait une commande système (os, subprocess, socket, etc.) ou un mot-clé bloqué. Demandez à l'IA de réécrire le code sans ces éléments. |
 | **Bac à sable : timeout / lent** | Le code a dépassé 30 secondes (boucle infinie ?). Vérifiez que matplotlib, numpy sont installés (`pip install matplotlib numpy`). |

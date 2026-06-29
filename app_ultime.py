@@ -46,6 +46,7 @@ import wave
 import time
 from datetime import datetime
 from io import BytesIO
+from translations import TRANSLATIONS, LANG_NAMES
 
 # ========================= CONFIGURATION =========================
 MODEL_TEXT = "qwen2.5:3b"
@@ -71,6 +72,16 @@ WHISPER_MODEL = "tiny"         # tiny (39 Mo), base (74 Mo), small (244 Mo)
 WHISPER_DEVICE = "cpu"
 WHISPER_COMPUTE_TYPE = "int8"
 # ================================================================
+
+
+# --- INITIALISATION SESSION_STATE ---
+if "lang" not in st.session_state:
+    st.session_state.lang = "fr" 
+
+# --- FONCTION MAGIQUE DE TRADUCTION t() ---
+def t(key: str) -> str:
+    lang = st.session_state.lang
+    return TRANSLATIONS.get(lang, TRANSLATIONS["fr"]).get(key, key)
 
 
 # --- Détection imports optionnels ---
@@ -1176,6 +1187,22 @@ if HAS_CHROMADB:
     AVAILABLE_FUNCTIONS["rechercher_documents"] = rechercher_documents
 
 
+# ==============================================================================
+# 4. PRÉPARATION DU SYSTEM PROMPT MULTI-LANGUE
+# ==============================================================================
+def preparer_system_prompt(persona_nom: str) -> str:
+    target_language = LANG_NAMES.get(st.session_state.lang, "Français (French)")
+    
+    # Injection dynamique stricte pour forcer le LLM à basculer
+    full_prompt = (
+        f"--- IMPORTANT STRICT DIRECTIVE ---\n"
+        f"You must strictly analyze, think, and communicate your final response to the user entirely in this language: {target_language}.\n"
+        f"Do not use any other language for your final response."
+    )
+    return full_prompt
+
+
+
 # ========================= 5. MÉMOIRE PERSISTANTE =========================
 
 def load_memory():
@@ -1397,6 +1424,21 @@ def main():
 
         st.divider()
 
+        # SÉLECTEUR DE LANGUE EN DIRECT
+        lang_display = {"fr": "🇫🇷 Français", "en": "🇬🇧 English", "es": "🇪🇸 Español", "de": "🇩🇪 Deutsch"}
+        selected_lang_display = st.selectbox(
+            t("select_lang"),
+            options=list(lang_display.values()),
+            index=list(lang_display.keys()).index(st.session_state.lang)
+        )
+        # Vérification et mise à jour instantanée si la langue change
+        for code, disp in lang_display.items():
+            if disp == selected_lang_display and st.session_state.lang != code:
+                st.session_state.lang = code
+                st.rerun()  # Recharge la page instantanément avec la nouvelle langue
+
+        st.divider()
+        
         # Personnalité
         personnalites = load_personnalites()
         noms_personnalites = [p["nom"] for p in personnalites]
