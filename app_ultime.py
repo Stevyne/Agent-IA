@@ -1290,6 +1290,8 @@ def run_text_agent(history, user_msg, system_prompt: str = None):
     """
     # Injecter le system prompt si présent et non déjà en place
     if system_prompt:
+        system_prompt = system_prompt + "\n\n" + preparer_system_prompt("")
+    if system_prompt:
         has_system = any(m.get("role") == "system" for m in history)
         if not has_system:
             history.insert(0, {"role": "system", "content": system_prompt})
@@ -1309,7 +1311,20 @@ def run_text_agent(history, user_msg, system_prompt: str = None):
 
     response = ollama.chat(model=MODEL_TEXT, messages=history, tools=TOOLS)
 
+    MAX_TOOL_ITERATIONS = 5
+    iterations = 0
+
     while response.message.tool_calls:
+        iterations += 1
+        if iterations > MAX_TOOL_ITERATIONS:
+            history.append({
+                "role": "system",
+                "content": "Limite d'appels d'outils atteinte. Réponds maintenant directement à l'utilisateur avec les informations déjà obtenues, sans appeler d'autre outil."
+            })
+            # Un dernier appel SANS tools pour forcer une réponse texte finale
+            response = ollama.chat(model=MODEL_TEXT, messages=history)
+            break
+
         assistant_msg = {
             "role": "assistant",
             "content": response.message.content or "",
@@ -1579,20 +1594,25 @@ def main():
                 st.markdown(msg["content"])
 
     # ==================== TRAITEMENT MICRO ====================
-        if st.session_state.trigger_micro and enable_stt and stt.ok:
-            st.session_state.trigger_micro = False
-            with st.spinner("🎤 J'écoute..."):
-                heard = stt.listen()
-            if heard:
-                st.info(f"👤 Vous avez dit : *{heard}*")
-                # Détection auto de la personnalité avant traitement
-                if auto_detect:
-                    st.session_state.personnalite_detected_idx = detecter_personnalite_auto(heard, personnalites)
-                    personnalite_choisie = personnalites[st.session_state.personnalite_detected_idx]
-                # Traiter comme input utilisateur
-                process_input(heard, uploaded_file, use_memory, enable_tts, tts, system_prompt=personnalite_choisie.get("system_prompt"), personnalite_nom=personnalite_choisie.get("nom") if auto_detect else None)
-            else:
-                st.warning("Je n'ai pas compris. Veuillez réessayer ou taper votre message.")
+    # NOTE : ce bloc était auparavant indenté À L'INTÉRIEUR de la boucle
+    # d'affichage ci-dessus, ce qui faisait qu'il ne s'exécutait jamais
+    # tant que st.session_state.messages était vide (premier lancement,
+    # ou juste après "Nouvelle conversation"). Il est maintenant exécuté
+    # à chaque run de l'app, indépendamment de l'historique affiché.
+    if st.session_state.trigger_micro and enable_stt and stt.ok:
+        st.session_state.trigger_micro = False
+        with st.spinner("🎤 J'écoute..."):
+            heard = stt.listen()
+        if heard:
+            st.info(f"👤 Vous avez dit : *{heard}*")
+            # Détection auto de la personnalité avant traitement
+            if auto_detect:
+                st.session_state.personnalite_detected_idx = detecter_personnalite_auto(heard, personnalites)
+                personnalite_choisie = personnalites[st.session_state.personnalite_detected_idx]
+            # Traiter comme input utilisateur
+            process_input(heard, uploaded_file, use_memory, enable_tts, tts, system_prompt=personnalite_choisie.get("system_prompt"), personnalite_nom=personnalite_choisie.get("nom") if auto_detect else None)
+        else:
+            st.warning("Je n'ai pas compris. Veuillez réessayer ou taper votre message.")
 
     # ==================== INPUT TEXTE ====================
     user_input = st.chat_input("Posez votre question, décrivez une image, ou demandez un document...")
@@ -1607,6 +1627,17 @@ def main():
 
 def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: bool, tts: TTSManager, system_prompt: str = None, personnalite_nom: str = None):
     """Fonction centrale qui traite l'input utilisateur (texte ou micro)."""
+
+    # Fusion du system_prompt de la personnalité avec la directive de langue.
+    # Avant ce correctif, preparer_system_prompt() était définie mais jamais
+    # appelée : le sélecteur de langue changeait l'UI (via t()) mais ne
+    # forçait pas réellement Qwen à répondre dans la langue choisie.
+    system_prompt = (system_prompt or "") + "\n\n" + preparer_system_prompt(personnalite_nom)
+    lang_directive = preparer_system_prompt(personnalite_nom)
+    if system_prompt:
+        system_prompt = f"{system_prompt}\n\n{lang_directive}"
+    else:
+        system_prompt = lang_directive
 
     if uploaded_file is not None:
         b64 = encode_image(uploaded_file)
@@ -1663,7 +1694,7 @@ def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: 
                         reply = run_text_agent(
                             st.session_state.internal_history,
                             pipeline_prompt,
-                            system_prompt=system_prompt
+                            system_prompt=(system_prompt or "") + "\n\n" + preparer_system_prompt(personnalite_nom or "")
                         )
                     else:
                         reply = run_vision_agent(
@@ -1680,7 +1711,7 @@ def process_input(user_input: str, uploaded_file, use_memory: bool, enable_tts: 
                     reply = run_text_agent(
                         st.session_state.internal_history,
                         user_display_text,
-                        system_prompt=system_prompt
+                        system_prompt=(system_prompt or "") + "\n\n" + preparer_system_prompt(personnalite_nom or "")
                     )
             except Exception as e:
                 reply = f"❌ Erreur : {e}"
